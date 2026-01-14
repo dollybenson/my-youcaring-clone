@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { DonateButton } from "./donate-button";
+import { ConnectStripeButton } from "./connect-button"; // <--- NEW IMPORT
 import Image from "next/image";
 import { formatDistance } from "date-fns";
-import { Facebook, MessageCircle } from "lucide-react"; // Icons
+import { Facebook, MessageCircle } from "lucide-react"; 
 
 export const dynamic = "force-dynamic";
 
@@ -65,13 +66,26 @@ export default async function CampaignPage({ params }: { params: { id: string } 
             className="prose max-w-none text-gray-700 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: campaign.story || campaign.description }} 
           />
-          {/* Note: This allows images to be full width automatically via Tailwind 'prose' */}
-
         </div>
 
         {/* RIGHT COLUMN (Sidebar) */}
         <div className="space-y-6">
           
+          {/* --- NEW SECTION: CONNECT STRIPE BUTTON --- */}
+          {/* Only shows if the organizer hasn't connected yet */}
+          {!campaign.stripeAccountId && (
+            <div className="bg-yellow-50 border border-yellow-200 p-5 rounded-xl shadow-sm animate-pulse">
+              <h3 className="font-bold text-yellow-800 mb-2 flex items-center gap-2">
+                ⚠️ Organizer Action Required
+              </h3>
+              <p className="text-sm text-yellow-700 mb-4">
+                To receive donations, you must connect your bank account via Stripe.
+              </p>
+              <ConnectStripeButton campaignId={campaign.id} />
+            </div>
+          )}
+          {/* ------------------------------------------ */}
+
           {/* Donation Card */}
           <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 sticky top-24">
             <div className="mb-6">
