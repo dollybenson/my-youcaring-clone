@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force Rebuild: YouCaring Clone Styles */
 body {
-  background: #f9fafb;
+  background-color: #f9fafb; 
 }
