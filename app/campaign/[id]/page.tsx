@@ -1,66 +1,158 @@
-// app/campaign/[id]/page.tsx
 import { db } from "@/lib/db";
-import { DonateButton } from "./donate-button"; // Client component we will make next
+import { DonateButton } from "./donate-button";
+import Image from "next/image";
+import { formatDistance } from "date-fns";
+import { Facebook, MessageCircle } from "lucide-react"; // Icons
+
+export const dynamic = "force-dynamic";
 
 export default async function CampaignPage({ params }: { params: { id: string } }) {
   const campaign = await db.campaign.findUnique({
     where: { id: params.id },
-    include: { donations: { orderBy: { createdAt: 'desc' } } }
+    include: {
+      donations: { orderBy: { createdAt: "desc" } },
+      updates: { orderBy: { createdAt: "desc" } }
+    },
   });
 
   if (!campaign) return <div>Campaign not found</div>;
 
+  // Logic for Donor Lists
+  const recentDonors = campaign.donations.slice(0, 10);
+  const topDonors = [...campaign.donations].sort((a, b) => b.amount - a.amount).slice(0, 10);
+
+  // Currency Symbol Helper
+  const getSymbol = (curr: string) => {
+    if (curr === "EUR") return "€";
+    if (curr === "GBP") return "£";
+    return "$";
+  };
+  const symbol = getSymbol(campaign.currency);
+
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+    <main className="bg-gray-50 min-h-screen py-10">
+      <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column: Story */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden p-6">
-             <h1 className="text-3xl font-bold text-gray-900 mb-4">{campaign.title}</h1>
-             <div className="bg-gray-200 h-64 rounded-lg mb-6 w-full object-cover flex items-center justify-center text-gray-400">
-                {campaign.imageUrl ? <img src={campaign.imageUrl} className="w-full h-full object-cover rounded-lg"/> : "Campaign Image"}
-             </div>
-             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{campaign.description}</p>
+        {/* LEFT COLUMN (Main Content) */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Main Image */}
+          <div className="relative w-full h-[400px] rounded-xl overflow-hidden shadow-lg">
+            <Image 
+              src={campaign.imageUrl} 
+              alt={campaign.title} 
+              fill 
+              className="object-cover"
+            />
           </div>
 
-          {/* Donations List */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="font-bold text-xl mb-4">Words of Support ({campaign.donations.length})</h3>
-            {campaign.donations.map((d) => (
-              <div key={d.id} className="border-b last:border-0 py-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="bg-purple-100 text-purple-700 rounded-full w-8 h-8 flex items-center justify-center font-bold text-xs">
-                    {d.donorName ? d.donorName[0] : "A"}
-                  </div>
-                  <span className="font-bold text-gray-800">{d.donorName || "Anonymous"}</span>
-                  <span className="text-gray-500 text-sm">donated ${(d.amount / 100).toLocaleString()}</span>
-                </div>
-                {d.message && <p className="text-gray-600 pl-10 text-sm">"{d.message}"</p>}
-              </div>
-            ))}
+          {/* Title & Organizer */}
+          <div>
+            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">{campaign.title}</h1>
+            <p className="text-gray-500">Organized by <span className="font-semibold text-purple-700">{campaign.organizer}</span></p>
           </div>
+
+          {/* Navigation Tabs (Story / Updates) */}
+          <div className="border-b border-gray-200">
+            <nav className="flex gap-8">
+              <button className="border-b-4 border-purple-600 pb-3 font-bold text-purple-800">The Story</button>
+              <button className="pb-3 font-medium text-gray-500 hover:text-gray-800">Updates ({campaign.updates.length})</button>
+            </nav>
+          </div>
+
+          {/* The Story Box */}
+          <div 
+            className="prose max-w-none text-gray-700 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: campaign.story || campaign.description }} 
+          />
+          {/* Note: This allows images to be full width automatically via Tailwind 'prose' */}
+
         </div>
 
-        {/* Right Column: Donation Card */}
-        <div className="md:col-span-1">
-          <div className="bg-white p-6 rounded-xl shadow-lg sticky top-24 border-t-4 border-purple-600">
+        {/* RIGHT COLUMN (Sidebar) */}
+        <div className="space-y-6">
+          
+          {/* Donation Card */}
+          <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 sticky top-24">
             <div className="mb-6">
-              <span className="text-3xl font-bold text-gray-900">${(campaign.raised / 100).toLocaleString()}</span>
-              <span className="text-gray-500 text-sm ml-1">raised of ${(campaign.goal / 100).toLocaleString()} goal</span>
-            </div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-3 mb-6">
-              <div className="bg-purple-600 h-3 rounded-full" 
-                   style={{ width: `${Math.min((campaign.raised / campaign.goal) * 100, 100)}%` }}></div>
+              <p className="text-3xl font-bold text-gray-900">
+                {symbol}{campaign.raised.toLocaleString()} <span className="text-base font-normal text-gray-500">raised of {symbol}{campaign.goal.toLocaleString()}</span>
+              </p>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-100 rounded-full h-3 mt-3 mb-1">
+                <div 
+                  className="bg-purple-600 h-3 rounded-full transition-all duration-1000" 
+                  style={{ width: `${Math.min((campaign.raised / campaign.goal) * 100, 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-gray-500 text-right">{campaign.donations.length} donations</p>
             </div>
 
-            {/* This Client Component handles the Logic */}
-            <DonateButton campaignId={campaign.id} />
-            
+            {/* Social Sharing Buttons */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+               <a 
+                 href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://your-site.com/campaign/" + campaign.id)}`}
+                 target="_blank"
+                 className="flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+               >
+                 <Facebook size={18} /> Facebook
+               </a>
+               <a 
+                 href={`https://wa.me/?text=${encodeURIComponent(campaign.title + " " + "https://your-site.com/campaign/" + campaign.id)}`}
+                 target="_blank"
+                 className="flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600 transition"
+               >
+                 <MessageCircle size={18} /> WhatsApp
+               </a>
+            </div>
+
+            {/* Donate Button Component */}
+            <DonateButton campaignId={campaign.id} currency={campaign.currency} symbol={symbol} />
+
+            {/* TOP DONORS */}
+            <div className="mt-8">
+              <h3 className="font-bold text-gray-900 border-b pb-2 mb-4">Top Donations</h3>
+              {topDonors.length === 0 ? <p className="text-sm text-gray-500">Be the first top donor!</p> : (
+                <div className="space-y-4">
+                  {topDonors.map((d) => (
+                    <div key={d.id} className="flex items-center gap-3">
+                      <div className="bg-yellow-100 text-yellow-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs">★</div>
+                      <div>
+                        <p className="font-bold text-gray-900">{d.isAnonymous ? "Anonymous" : d.donorName}</p>
+                        <p className="text-sm text-gray-500">{symbol}{d.amount}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* RECENT DONORS */}
+            <div className="mt-8">
+              <h3 className="font-bold text-gray-900 border-b pb-2 mb-4">Recent Donations</h3>
+               {recentDonors.length === 0 ? <p className="text-sm text-gray-500">No donations yet.</p> : (
+                <div className="space-y-4">
+                  {recentDonors.map((d) => (
+                    <div key={d.id} className="flex items-center gap-3">
+                      <div className="bg-gray-100 text-gray-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs">
+                        {d.isAnonymous ? "A" : d.donorName?.[0] || "D"}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900">{d.isAnonymous ? "Anonymous" : d.donorName}</p>
+                        <p className="text-xs text-gray-500">
+                          {symbol}{d.amount} • {formatDistance(d.createdAt, new Date(), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
