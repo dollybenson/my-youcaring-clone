@@ -3,8 +3,11 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia", // Use latest version
+  apiVersion: "2024-12-18.acacia", 
 });
+
+// YOUR REAL WEBSITE URL
+const SITE_URL = "https://my-youcaring-clone.vercel.app";
 
 export async function POST(req: Request) {
   try {
@@ -21,11 +24,11 @@ export async function POST(req: Request) {
       data: { stripeAccountId: account.id },
     });
 
-    // 3. Create a Link to send them to Stripe to finish signup
+    // 3. Create the Link to send them to Stripe
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${process.env.NEXT_PUBLIC_URL || "https://your-site.vercel.app"}/campaign/${campaignId}`,
-      return_url: `${process.env.NEXT_PUBLIC_URL || "https://your-site.vercel.app"}/campaign/${campaignId}`,
+      refresh_url: `${SITE_URL}/campaign/${campaignId}`,
+      return_url: `${SITE_URL}/campaign/${campaignId}`,
       type: "account_onboarding",
     });
 
