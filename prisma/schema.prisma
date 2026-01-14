@@ -5,30 +5,48 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") // Used for Vercel Postgres
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Campaign {
-  id          String     @id @default(cuid())
-  title       String
-  description String
-  goal        Int        // In cents
-  raised      Int        @default(0) // In cents
-  imageUrl    String?
-  organizer   String
-  createdAt   DateTime   @default(now())
-  donations   Donation[]
+  id              String     @id @default(cuid())
+  title           String
+  description     String     @db.Text // Short description for cards
+  story           String     @db.Text // The big story box (HTML/Images/Videos)
+  goal            Float
+  raised          Float      @default(0)
+  currency        String     @default("USD") // USD, EUR, GBP
+  organizer       String
+  stripeAccountId String?    // Their connected Stripe ID
+  imageUrl        String     // Main image for sharing
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  donations       Donation[]
+  updates         Update[]   // New feature: Campaign Updates
 }
 
 model Donation {
   id          String   @id @default(cuid())
-  amount      Int      // Donation to campaign (cents)
-  tip         Int      // Tip to platform (cents)
-  donorName   String?
-  message     String?
+  amount      Float
+  currency    String   @default("USD")
+  donorName   String?  // Optional name
+  isAnonymous Boolean  @default(false)
+  comment     String?
+  createdAt   DateTime @default(now())
+  
   campaignId  String
   campaign    Campaign @relation(fields: [campaignId], references: [id])
+}
+
+model Update {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text // Text + Images + Video links
   createdAt   DateTime @default(now())
+  
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
 }
